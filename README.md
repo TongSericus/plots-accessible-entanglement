@@ -11,10 +11,13 @@ Corresponding spin and charge distributions at different $t_{\perp}$. Spin distr
 ### ED results for attractive Hubbard models at different fillings
 1D at half-filling ($L=8, N_e=8$)
 <img src="./figures/EE_attrHubbard_1d_Ne8.svg">
+
 1D at non-half-filling ($L=8, N_e=6$)
 <img src="./figures/EE_attrHubbard_1d_Ne6.svg">
+
 2D at half-filling ($L=4\times 2, N_e=8$)
 <img src="./figures/EE_attrHubbard_2d_Ne8.svg">
+
 2D at non-half-filling ($L=4\times 2, N_e=6$)
 <img src="./figures/EE_attrHubbard_2d_Ne6.svg">
 
