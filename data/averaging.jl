@@ -143,25 +143,49 @@ function average_prob_data(
 end
 
 ### Estimate with Jack's Knife ###
-# estimate Shannon entropy
 function estimate_Hα(Pn::AbstractArray{T}; α::Float64 = 0.5) where T
-    # find a rough scope of meaningful distributions
-    Pn_avg = reshape(mean(Pn, dims=2), length(axes(Pn,1)))
-    idx = findall(x -> x > 1e-6, Pn_avg)
 
-    Pn_list = zeros(T, length(idx), length(axes(Pn,2)))
+    Pn_list = zeros(T, size(Pn))
     Hα_jack = zeros(T, length(axes(Pn,2)))
-    for (i,n) in enumerate(idx)
-        Pn_list[i, :] = JackknifeObservable(@view Pn[n, :])
+    for i in axes(Pn,1)
+        Pn_list[i, :] = JackknifeObservable(@view Pn[i, :])
     end
 
     for i in axes(Pn,2)
-        idx = findall(x -> x > 1e-6, @view Pn_list[:, i])
-        Hα_jack[i] = Hα(α, @view Pn_list[idx, i])
+        Hα_jack[i] = Hα(α, @view Pn_list[:, i])
     end
 
     Hα_avg = mean(Hα_jack)
     Hα_err = std(Hα_jack) * sqrt(length(Hα_jack))
 
     return Hα_avg, Hα_err
+end
+
+function average_Shannon(
+    filelist::Vector{String}, path::String, filename::String;
+    p::String = "Pn",
+    param_name::String = "Null", param_list::Vector{Float64} = [0.0]
+)
+    L = length(filelist)
+    Hₙ_avg = zeros(ComplexF64, L)
+    Hₙ_err = zeros(ComplexF64, L)
+    Hₘ_avg = zeros(ComplexF64, L)
+    Hₘ_err = zeros(ComplexF64, L)
+
+    p == "Pn" ? (str = ["Pn", "Pm", "Hn", "Hm"]; α = 1.0) : (str = ["Pn2", "Pm2", "Hn2", "Hm2"]; α = 0.5)
+
+    for (n, f) in enumerate(filelist)
+        data = load("$(path)/$(f)")
+        Hₙ_avg[n], Hₙ_err[n] = estimate_Hα(data[str[1]], α = α)
+        Hₘ_avg[n], Hₘ_err[n] = estimate_Hα(data[str[2]], α = α)
+    end
+
+    # save the processed data
+    jldopen("./processed_data/$(filename)", "w") do file
+        write(file, "$(param_name)", param_list)
+        write(file, str[3] * "_avg", Hₙ_avg)
+        write(file, str[3] * "_err", Hₙ_err)
+        write(file, str[4] * "_avg", Hₘ_avg)
+        write(file, str[4] * "_err", Hₘ_err)
+    end
 end
