@@ -1,4 +1,4 @@
-using JLD, Measurements
+using JLD, Measurements, LinearAlgebra
 
 include("./averaging_utils.jl")
 
@@ -143,29 +143,55 @@ function average_prob_data(
 end
 
 # Read, merge and average correlation functions
-function average_corrfuncs_data(
+function merge_corrfuncs_data(
     filenames::Vector{String}, path::String, filename::String;
-    param_list::Vector{String} = ["Ps", "ninj_updn"]
+    param::String = "Ps"
 )
     # raw data is saved in multiple files
     data = load.("$(path)" .* filenames)
-    
-    corr_funcs_avg = []
-    corr_funcs_err = []
 
-    for param in param_list
-        tmp = [data[i][param] for i in 1:length(filenames)]
-        tmp_list = hcat(tmp...)
-        push!(corr_funcs_avg, mean(tmp_list, dims=2))
-        push!(corr_funcs_err, std(tmp_list, dims=2) / sqrt(size(tmp_list,2)))
+    tmp = [data[i][param] for i in 1:length(filenames)]
+    tmp_list = hcat(tmp...)
+    # save the merged data
+    jldopen("$(filename)", "w") do file
+        write(file, param, tmp_list)
+    end
+end
+
+# average correlation functions and compute structural factors
+function average_corrfuncs_data(
+    filelist::Vector{String}, path::String, filename::String;
+    param::String = "Ps",
+    q::Tuple{Real, Real} = (0,0),
+    δr::Vector{Tuple{Int64, Int64}} = [(δrx, δry) for δrx in 0:4 for δry in 0:4],
+    Lk::Int = length(δr)
+)
+    L = length(filelist)
+    param_avg = zeros(Float64, Lk, L)
+    param_err = zeros(Float64, Lk, L)
+    struct_fact_avg = zeros(Float64, L)
+    struct_fact_err = zeros(Float64, L)
+
+    for (n, f) in enumerate(filelist)
+        data = load("$(path)/$(f)")
+        tmp_avg = mean(data[param], dims=2)
+        tmp_err = std(data[param], dims=2) / sqrt(size(data[param],2))
+
+        @views param_avg[:, n] .= real(tmp_avg)
+        @views param_err[:, n] .= real(tmp_err)
+        # compute structural factor
+        tmp = measurement.(param_avg[:, n], param_err[:, n])
+        sf = real(sum([exp(dot(q, δr[j])im) * tmp[j] for j in 1:Lk])) / Lk
+        struct_fact_avg[n] = sf.val
+        struct_fact_err[n] = sf.err
     end
 
-    # save the merged data
+    # save the processed data
     jldopen("./processed_data/$(filename)", "w") do file
-        for (n,param) in enumerate(param_list)
-            write(file, param * "_avg", corr_funcs_avg[n])
-            write(file, param * "_err", corr_funcs_err[n])
-        end
+        write(file, param * "_avg", param_avg)
+        write(file, param * "_err", param_err)
+        write(file, "struct_fact_avg", struct_fact_avg)
+        write(file, "struct_fact_err", struct_fact_err)
     end
 end
 
