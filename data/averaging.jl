@@ -142,6 +142,33 @@ function average_prob_data(
     end
 end
 
+# Read, merge and average correlation functions
+function average_corrfuncs_data(
+    filenames::Vector{String}, path::String, filename::String;
+    param_list::Vector{String} = ["Ps", "ninj_updn"]
+)
+    # raw data is saved in multiple files
+    data = load.("$(path)" .* filenames)
+    
+    corr_funcs_avg = []
+    corr_funcs_err = []
+
+    for param in param_list
+        tmp = [data[i][param] for i in 1:length(filenames)]
+        tmp_list = hcat(tmp...)
+        push!(corr_funcs_avg, mean(tmp_list, dims=2))
+        push!(corr_funcs_err, std(tmp_list, dims=2) / sqrt(size(tmp_list,2)))
+    end
+
+    # save the merged data
+    jldopen("./processed_data/$(filename)", "w") do file
+        for (n,param) in enumerate(param_list)
+            write(file, param * "_avg", corr_funcs_avg[n])
+            write(file, param * "_err", corr_funcs_err[n])
+        end
+    end
+end
+
 ### Estimate with Jack's Knife ###
 function estimate_Hα(Pn::AbstractArray{T}; α::Float64 = 0.5) where T
 
@@ -187,5 +214,28 @@ function average_Shannon(
         write(file, str[3] * "_err", Hₙ_err)
         write(file, str[4] * "_avg", Hₘ_avg)
         write(file, str[4] * "_err", Hₘ_err)
+    end
+end
+
+function average_symmresolvedQI(
+    Pqfile::String, Pq2file::String, Etgfile::String, LA::Int, path::String, filename::String;
+    p::String = "Pn",
+    param_name::String = "U", param_list::Vector{Float64} = collect(-1.0:-1.0:-8.0)
+)
+    Pq_data = load("$(path)/$(Pqfile)")
+    Pq2_data = load("$(path)/$(Pq2file)")
+    Etg_data = load("$(path)/$(Etgfile)")
+
+    p == "Pn" ? (str = ["Pn", "Pn2"]) : (str = ["Pm", "Pm2"])
+    Sn = zeros(Measurement{Float64}, LA, length(param_list))
+    PnexpSn = zeros(Measurement{Float64}, LA, length(param_list))
+
+    for param in param_list
+        Pq = measurement.(real(Pq_data[str[1]*"_avg"]), real(Pq_data[str[1]*"_err"]))
+        Pq2 = measurement.(real(Pq2_data[str[2]*"_avg"]), real(Pq2_data[str[2]*"_err"]))
+        S2 = measurement.(Etg_data["S2_avg"], Etg_data["S2_err"])
+        for i in 1:LA
+
+        end
     end
 end
