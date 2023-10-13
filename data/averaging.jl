@@ -1,4 +1,4 @@
-using JLD, Measurements
+using JLD, Measurements, LinearAlgebra
 
 include("./averaging_utils.jl")
 
@@ -142,6 +142,59 @@ function average_prob_data(
     end
 end
 
+# Read, merge and average correlation functions
+function merge_corrfuncs_data(
+    filenames::Vector{String}, path::String, filename::String;
+    param::String = "Ps"
+)
+    # raw data is saved in multiple files
+    data = load.("$(path)" .* filenames)
+
+    tmp = [data[i][param] for i in 1:length(filenames)]
+    tmp_list = hcat(tmp...)
+    # save the merged data
+    jldopen("$(filename)", "w") do file
+        write(file, param, tmp_list)
+    end
+end
+
+# average correlation functions and compute structural factors
+function average_corrfuncs_data(
+    filelist::Vector{String}, path::String, filename::String;
+    param::String = "Ps",
+    q::Tuple{Real, Real} = (0,0),
+    δr::Vector{Tuple{Int64, Int64}} = [(δrx, δry) for δrx in 0:4 for δry in 0:4],
+    Lk::Int = length(δr)
+)
+    L = length(filelist)
+    param_avg = zeros(Float64, Lk, L)
+    param_err = zeros(Float64, Lk, L)
+    struct_fact_avg = zeros(Float64, L)
+    struct_fact_err = zeros(Float64, L)
+
+    for (n, f) in enumerate(filelist)
+        data = load("$(path)/$(f)")
+        tmp_avg = mean(data[param], dims=2)
+        tmp_err = std(data[param], dims=2) / sqrt(size(data[param],2))
+
+        @views param_avg[:, n] .= real(tmp_avg)
+        @views param_err[:, n] .= real(tmp_err)
+        # compute structural factor
+        tmp = measurement.(param_avg[:, n], param_err[:, n])
+        sf = real(sum([exp(dot(q, δr[j])im) * tmp[j] for j in 1:Lk])) / Lk
+        struct_fact_avg[n] = sf.val
+        struct_fact_err[n] = sf.err
+    end
+
+    # save the processed data
+    jldopen("./processed_data/$(filename)", "w") do file
+        write(file, param * "_avg", param_avg)
+        write(file, param * "_err", param_err)
+        write(file, "struct_fact_avg", struct_fact_avg)
+        write(file, "struct_fact_err", struct_fact_err)
+    end
+end
+
 ### Estimate with Jack's Knife ###
 function estimate_Hα(Pn::AbstractArray{T}; α::Float64 = 0.5) where T
 
@@ -187,5 +240,28 @@ function average_Shannon(
         write(file, str[3] * "_err", Hₙ_err)
         write(file, str[4] * "_avg", Hₘ_avg)
         write(file, str[4] * "_err", Hₘ_err)
+    end
+end
+
+function average_symmresolvedQI(
+    Pqfile::String, Pq2file::String, Etgfile::String, LA::Int, path::String, filename::String;
+    p::String = "Pn",
+    param_name::String = "U", param_list::Vector{Float64} = collect(-1.0:-1.0:-8.0)
+)
+    Pq_data = load("$(path)/$(Pqfile)")
+    Pq2_data = load("$(path)/$(Pq2file)")
+    Etg_data = load("$(path)/$(Etgfile)")
+
+    p == "Pn" ? (str = ["Pn", "Pn2"]) : (str = ["Pm", "Pm2"])
+    Sn = zeros(Measurement{Float64}, LA, length(param_list))
+    PnexpSn = zeros(Measurement{Float64}, LA, length(param_list))
+
+    for param in param_list
+        Pq = measurement.(real(Pq_data[str[1]*"_avg"]), real(Pq_data[str[1]*"_err"]))
+        Pq2 = measurement.(real(Pq2_data[str[2]*"_avg"]), real(Pq2_data[str[2]*"_err"]))
+        S2 = measurement.(Etg_data["S2_avg"], Etg_data["S2_err"])
+        for i in 1:LA
+
+        end
     end
 end
