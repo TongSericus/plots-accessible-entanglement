@@ -1,3 +1,5 @@
+[![Paper](https://img.shields.io/badge/paper-arXiv%3A2212.08654-B31B1B.svg)](https://arxiv.org/abs/2312.11746)
+
 # Disentangling the Physics of the Attractive Hubbard Model via the Accessible and Symmetry-Resolved Entanglement Entropies
 
 Tong Shen, Hatem Barghathi, Adrian Del Maestro, Brenda M. Rubenstein
