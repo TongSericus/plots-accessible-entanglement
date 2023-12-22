@@ -11,6 +11,7 @@ The complicated ways in which electrons interact in many-body systems such as mo
 This repository includes links, code, scripts, and data to generate the figures in a paper.
 
 ### Requirements
+The data for this project was generated using the source code [SwapQMC](https://github.com/TongSericus/SwapQMC). Everything included in the [data](https://github.com/DelMaestroGroup/plots-accessible-entanglement/tree/main/data) directory was processed from the raw data on Zenodo [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.7444086.svg)](https://doi.org/10.5281/zenodo.10420573).
 
 ### Support
 The creation of these materials was supported in part by the NSF CTMC CAREER Award 2046744 and the NSF under Grant No. DMR-2041995.
